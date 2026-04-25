@@ -2,16 +2,17 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --- 1. Llama 3.1 Setup (Using Secrets) ---
+# --- 1. Llama Setup ---
+# Hum ne try/except ko bilkul sahi format mein rakha hai
 try:
-    # Ab key safe hai, code mein nazar nahi aayegi
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-model_id = "llama-3.1-8b-instant"
+    # Ye model 100% stable hai aur fast chalta hai
+    model_id = "llama-3.1-8b-instant"
 except Exception as e:
-    st.error("Secrets mein API Key nahi mili! Settings check karein.")
+    st.error(f"Setup Error: {e}")
 
-# --- 2. Permanent Memory ---
-chat_file = "sammad_dream_memory.txt"
+# --- 2. Memory System ---
+chat_file = "dream_memory.txt"
 
 def save_chat(u, a):
     with open(chat_file, "a", encoding="utf-8") as f:
@@ -23,17 +24,19 @@ def load_chat():
             return f.read()
     return "Memory is fresh."
 
-# --- 3. UI ---
+# --- 3. UI Design ---
 st.set_page_config(page_title="Sammad AI Pro", layout="wide")
-st.title("⚡ Sammad's Secure Llama 3.1 Server")
+st.title("⚡ Sammad's Final Dream Server")
 
 with st.sidebar:
-    st.title("📜 Chat Logs")
-    if st.button("Clear Memory"):
-        if os.path.exists(chat_file): os.remove(chat_file); st.rerun()
-    st.text_area("All-Time History:", load_chat(), height=500)
+    st.title("📜 Memory Logs")
+    if st.button("Clear Logs"):
+        if os.path.exists(chat_file):
+            os.remove(chat_file)
+            st.rerun()
+    st.text_area("History:", load_chat(), height=500)
 
-# --- 4. Chat + Clipboard ---
+# --- 4. Chat Interface ---
 user_input = st.chat_input("Hukum karein, Sammad bhai...")
 
 if user_input:
@@ -44,14 +47,16 @@ if user_input:
         )
         ai_res = chat_completion.choices[0].message.content
         
+        # Save to permanent memory
         save_chat(user_input, ai_res)
         
+        # Display results
         st.markdown(f"**You:** {user_input}")
-        st.markdown(f"**Llama 3.1:** {ai_res}")
+        st.markdown(f"**AI:** {ai_res}")
         
-        # Clipboard feature
+        # Simple Clipboard Button
         st.copy_to_clipboard(ai_res)
-        st.success("Jawab copy ho gaya!")
+        st.success("Copied to clipboard!")
         
     except Exception as e:
         st.error(f"Error: {e}")
