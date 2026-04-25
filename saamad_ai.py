@@ -20,12 +20,15 @@ chat_file = f"chat_history_{user_name}.txt"
 st.sidebar.markdown("---")
 st.sidebar.subheader(f"History for: {user_name.capitalize()}")
 
-# Sahi wala code (Line 23 se 28 tak):
+# --- Ye Lines Bilkul Aisi Honi Chahiyen ---
 if "history" not in st.session_state:
     st.session_state.history = []
 
 if os.path.exists(chat_file):
     with open(chat_file, "r", encoding="utf-8") as file:
+        st.sidebar.text_area("Old Records:", file.read(), height=400)
+else:
+    st.sidebar.info("No previous history found for this user.")
         st.sidebar.text_area("Old Records:", file.read(), height=400)
 else:
     st.sidebar.info("No previous history found for this user.")
