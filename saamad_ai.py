@@ -4,122 +4,125 @@ from gtts import gTTS
 import base64
 import os
 
-# --- 1. Page Configuration (Title and Icon like Gemini) ---
+# --- 1. Page Config ---
 st.set_page_config(page_title="Astro AI", page_icon="✨", layout="wide")
 
-# --- 2. Hoo-boo-Hoo Gemini Duplicate CSS (Dark Mode & Layout) ---
+# --- 2. Heavy Custom CSS (Gemini Duplicate Logic) ---
 st.markdown("""
 <style>
-    /* Pure Gemini Dark Theme */
-    :root { font-family: 'Google Sans', Arial, sans-serif; }
-    .main { background-color: #131314; color: #e3e3e3; padding-bottom: 80px; } /* Space for fixed footer */
+    /* Dark Theme Background */
+    .main { background-color: #131314; color: #e3e3e3; }
     
-    /* Fixed Input Area at Bottom (Hoo-boo-Hoo duplicate) */
-    div[data-testid="stChatInput"] { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 5% 20px 5%; background-color: #131314; z-index: 999; border-top: 1px solid #333; }
-    .stChatInput { border-radius: 30px; background-color: #1e1f20; border: 1px solid #444746; padding: 5px 15px;}
-    .stChatInput > div > div > input { background-color: transparent; color: white; font-size: 16px; }
+    /* Hide ALL default Streamlit Icons & Labels */
+    [data-testid="stChatMessageAvatarUser"], 
+    [data-testid="stChatMessageAvatarAssistant"],
+    .st-emotion-cache-1090159 { display: none !important; }
 
-    /* Fix Microphone styling to be inside the input area like a small icon */
-    .stAudioInput { width: 40px !important; margin-left: 10px; margin-bottom: 5px; background: none !important;}
-    .stAudioInput > div > button { background-color: transparent !important; color: #8ab4f8 !important; border-radius: 50%; width: 35px; height: 35px;}
+    /* Message Bubble Alignment */
+    [data-testid="stChatMessage"] { background-color: transparent !important; border: none !important; margin-bottom: 20px; }
+    
+    /* USER: Right Side Alignment */
+    [data-testid="stChatMessage-user"] { 
+        display: flex; justify-content: flex-end; text-align: right; 
+    }
+    [data-testid="stChatMessage-user"] .stMarkdown { 
+        background-color: #2b2d2f; color: white; padding: 10px 15px; 
+        border-radius: 18px 18px 0px 18px; max-width: 70%;
+    }
 
-    /* Gemini Message Bubbles Style (Standard look, no heavy color) */
-    [data-testid="stChatMessage"] { background-color: transparent !important; border: none !important; padding: 15px 0;}
-    [data-testid="stChatMessage"] .stMarkdown { border-radius: 12px; font-size: 16px; display: inline-block;}
-    [data-testid="stChatMessage-user"] { text-align: right; }
-    [data-testid="stChatMessage-user"] .stMarkdown { background-color: #005c4b; color: white; padding: 12px 18px; }
-    [data-testid="stChatMessage-assistant"] { text-align: left; }
-    [data-testid="stChatMessage-assistant"] .stMarkdown { background-color: transparent; color: #e3e3e3; padding: 0 10px; }
+    /* ASTRO: Left Side Alignment */
+    [data-testid="stChatMessage-assistant"] { 
+        display: flex; justify-content: flex-start; text-align: left; 
+    }
+    [data-testid="stChatMessage-assistant"] .stMarkdown { 
+        background-color: transparent; color: #e3e3e3; padding: 10px 0; 
+        max-width: 80%;
+    }
 
-    /* Icons Row (Copy & Voice controls) below message */
-    .chat-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; opacity: 0.8;}
-    .control-btn { cursor: pointer; font-size: 18px; background: none; border: none; color: #e3e3e3; }
-    .control-btn:hover { color: #8ab4f8; }
+    /* Sleek Input Bar at Bottom (Chota aur Patla) */
+    div[data-testid="stChatInput"] { 
+        position: fixed; bottom: 20px; padding: 0 15% !important; 
+        background-color: transparent !important; 
+    }
+    .stChatInput { 
+        border-radius: 30px !important; border: 1px solid #444746 !important; 
+        height: 45px !important; 
+    }
+
+    /* Fixed Mic Position */
+    .stAudioInput { width: 40px !important; margin-bottom: -55px !important; margin-left: 10px; z-index: 1000; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Initialize Astro (Roman Urdu Master) ---
+# --- 3. Astro Brain (With Follow-up Logic) ---
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "You are Astro. Reply in Roman Urdu. Be sleek, friendly, and smart like Gemini. Only switch languages if user specifically asks."}
+        {"role": "system", "content": """You are Astro. 
+        1. Language: Reply in Roman Urdu by default. If user speaks English, you reply in English. Support all languages.
+        2. Tone: Friendly like a best friend. 
+        3. Structure: Give a detailed answer, then ALWAYS end with a friendly follow-up question related to the topic.
+        4. Math: Super fast and accurate."""}
     ]
 
-# --- 4. Sidebar (Replicated Gemini Panel) ---
+# --- 4. Sidebar ---
 with st.sidebar:
     st.title("Astro ✨")
-    st.markdown("---")
-    # FEATURE 5: + Add Photo Option
-    uploaded_image = st.file_uploader("+ Add Photo", type=['png', 'jpg', 'jpeg'], help="Standard file upload for photo analysis.")
-    # Gemini options
-    uploaded_audio = st.file_uploader("Upload Audio command", type=['mp3', 'wav', 'm4a'])
-    uploaded_doc = st.file_uploader("Upload Document", type=['pdf', 'txt'])
-    
-    if st.button("New Chat", use_container_width=True):
+    st.file_uploader("+ Add Photo", type=['png', 'jpg', 'jpeg'])
+    if st.button("Clear Chat"):
         st.session_state.messages = st.session_state.messages[:1]
         st.rerun()
 
-# --- 5. Main Chat Area ---
-# No huge title, standard Gemini name centered
-st.markdown("<h3 style='text-align: center; color: #8ab4f8;'>Astro</h3>", unsafe_allow_html=True)
+# --- 5. Chat Display ---
+st.markdown("<h2 style='text-align: center; color: #8ab4f8; font-family: Google Sans;'>Astro</h2>", unsafe_allow_html=True)
 
-# Display Chat History
 for msg in st.session_state.messages:
     if msg["role"] == "system": continue
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# --- 6. Hybrid Input Area (Fixed Bottom - Text + Mic) ---
-# Gemini layout puts Mic on the far left of the text bar.
-# Streamlit structure requires the widgets to be placed, CSS handles position.
+# --- 6. The Input (Mic + Text) ---
+mic_col, in_col = st.columns([0.05, 0.95])
+with mic_col:
+    voice_in = st.audio_input("")
 
-st.write("---") # Visual separator before fixed area starts
-user_query = st.chat_input("Ask Astro anything...")
+user_in = st.chat_input("Ask me anything...")
 
-# Process Input Logic
-final_input = user_query
-if uploaded_image:
-    final_input = final_input if final_input else "[Analyzing Attached Photo]"
+# Logic
+query = user_in if user_in else ("User sent voice" if voice_in else None)
 
-if final_input:
-    st.session_state.messages.append({"role": "user", "content": final_input})
+if query:
+    st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"):
-        st.write(final_input)
-        if uploaded_image:
-            st.image(uploaded_image, caption="Uploaded Picture", width=250)
+        st.write(query)
 
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=st.session_state.messages
+            messages=st.session_state.messages,
+            temperature=0.7
         )
-        ai_ans = response.choices[0].message.content
+        ans = response.choices[0].message.content
         
         with st.chat_message("assistant"):
-            st.write(ai_ans)
+            st.write(ans)
             
-            # --- FIXED: Icons Row (Voice & Copy) ---
-            st.markdown(f'''
-                <div class="chat-controls">
-                    <button class="control-btn" title="Copy text" onclick="alert('Raw text for copy: {base64.b64encode(ai_ans.encode()).decode()}')">📋</button>
-                    <button class="control-btn" title="Synthesize Voice" onclick="document.getElementById('play_btn').click()">🎙️</button>
-                </div>
-            ''', unsafe_allow_html=True)
-            
-            # Hidden voice processing (Synthesize voice on user demand)
-            col_l, col_r = st.columns([0.1, 0.9])
-            with col_l:
-                if st.button("🔊 Play Voice", key="play_btn_trigger"):
-                    tts = gTTS(text=ai_ans[:350], lang='hi') # hindi tone for Roman Urdu
-                    tts.save("reply.mp3")
-                    with open("reply.mp3", "rb") as f:
+            # Bottom Controls (Icon Only)
+            c1, c2 = st.columns([0.1, 0.9])
+            with c1:
+                if st.button("🔊"):
+                    tts = gTTS(text=ans[:300], lang='hi')
+                    tts.save("v.mp3")
+                    with open("v.mp3", "rb") as f:
                         data = f.read()
-                    os.remove("reply.mp3")
-                    b64 = base64.b64encode(data).decode()
-                    st.markdown(f'<audio src="data:audio/mp3;base64,{b64}" controls autoplay style="height:35px;"></audio>', unsafe_allow_html=True)
+                    os.remove("v.mp3")
+                    st.markdown(f'<audio src="data:audio/mp3;base64,{base64.b64encode(data).decode()}" autoplay hidden></audio>', unsafe_allow_html=True)
+            with c2:
+                with st.expander("📋"):
+                    st.code(ans, language=None)
 
-        st.session_state.messages.append({"role": "assistant", "content": ai_ans})
+        st.session_state.messages.append({"role": "assistant", "content": ans})
         
     except Exception as e:
         st.error(f"Error: {e}")
