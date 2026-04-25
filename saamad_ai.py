@@ -4,7 +4,7 @@ import os
 
 # --- 1. AI CONFIGURATION ---
 # Put your Google Gemini API Key here
-genai.configure(api_key="AIzaSyByQyJVWfrVuw_NVs7XfMGyn8-iWcABQzY")
+genai.configure(api_key="google API key")
 model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # --- 2. APP PAGE SETTINGS ---
