@@ -2,57 +2,56 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --- 1. Llama 3.1 Ultra-Power Setup ---
+# --- 1. Llama 3.1 Setup (Using Secrets) ---
 try:
-    # Key direct code mein set kar di hai
-    client = Groq(api_key="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")
-    # Sabse powerful model
+    # Ab key safe hai, code mein nazar nahi aayegi
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     model_id = "llama-3.1-70b-versatile"
 except Exception as e:
-    st.error(f"Setup Error: {e}")
+    st.error("Secrets mein API Key nahi mili! Settings check karein.")
 
-# --- 2. Permanent Memory (Saalon tak save rahega) ---
+# --- 2. Permanent Memory ---
 chat_file = "sammad_dream_memory.txt"
 
 def save_chat(u, a):
     with open(chat_file, "a", encoding="utf-8") as f:
-        f.write(f"USER: {u}\nAI: {a}\n" + "—"*30 + "\n")
+        f.write(f"USER: {u}\nAI: {a}\n" + "—"*20 + "\n")
 
 def load_chat():
     if os.path.exists(chat_file):
         with open(chat_file, "r", encoding="utf-8") as f:
             return f.read()
-    return "Memory is fresh. No history yet."
+    return "Memory is fresh."
 
-# --- 3. UI Design ---
-st.set_page_config(page_title="Sammad Llama 3.1 Pro", layout="wide")
-st.title("⚡ Sammad's Ultra-Level Llama 3.1 Server")
-st.markdown("### 5 Years Wait Over - Dream Tool Active 🚀")
+# --- 3. UI ---
+st.set_page_config(page_title="Sammad AI Pro", layout="wide")
+st.title("⚡ Sammad's Secure Llama 3.1 Server")
 
-# --- 4. Sidebar (Permanent Records) ---
 with st.sidebar:
-    st.title("📜 Permanent Memory")
+    st.title("📜 Chat Logs")
     if st.button("Clear Memory"):
         if os.path.exists(chat_file): os.remove(chat_file); st.rerun()
-    st.text_area("All-Time Records:", load_chat(), height=600)
+    st.text_area("All-Time History:", load_chat(), height=500)
 
-# --- 5. Chat Engine ---
-user_input = st.chat_input("Ask Llama 3.1 anything...")
+# --- 4. Chat + Clipboard ---
+user_input = st.chat_input("Hukum karein, Sammad bhai...")
 
 if user_input:
     try:
-        # Llama 3.1 70B Response
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": user_input}],
             model=model_id,
         )
         ai_res = chat_completion.choices[0].message.content
         
-        # Save & Display
         save_chat(user_input, ai_res)
-        st.info(f"**Sammad:** {user_input}")
-        st.success(f"**Llama 3.1:** {ai_res}")
         
-        st.rerun()
+        st.markdown(f"**You:** {user_input}")
+        st.markdown(f"**Llama 3.1:** {ai_res}")
+        
+        # Clipboard feature
+        st.copy_to_clipboard(ai_res)
+        st.success("Jawab copy ho gaya!")
+        
     except Exception as e:
-        st.error(f"System Error: {e}")
+        st.error(f"Error: {e}")
