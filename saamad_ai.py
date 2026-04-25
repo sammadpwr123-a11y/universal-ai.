@@ -1,85 +1,63 @@
 import streamlit as st
-from groq import Groq
+import google.generativeai as genai
+from PIL import Image
 import os
 
-# --- 1. Page Config ---
-st.set_page_config(page_title="Sukkur's First AI", page_icon="⚡", layout="wide")
+# --- 1. Page Config (Clean Gemini Look) ---
+st.set_page_config(page_title="Sukkur's First AI", page_icon="✨", layout="wide")
 
-# --- 2. Advanced CSS (For Right/Left Chat Bubbles) ---
 st.markdown("""
     <style>
-    .main { background-color: #0f1116; color: #ffffff; }
-    /* User Message - Right Side */
-    .user-bubble {
-        background-color: #005c4b;
-        padding: 15px;
-        border-radius: 15px 15px 0px 15px;
-        margin-bottom: 20px;
-        width: fit-content;
-        max-width: 70%;
-        margin-left: auto;
-        color: white;
-    }
-    /* AI Message - Left Side */
-    .ai-bubble {
-        background-color: #202c33;
-        padding: 15px;
-        border-radius: 15px 15px 15px 0px;
-        margin-bottom: 20px;
-        width: fit-content;
-        max-width: 70%;
-        margin-right: auto;
-        color: white;
-    }
-    .stTextInput > div > div > input { background-color: #2a3942; color: white; border-radius: 25px; }
+    .main { background-color: #131314; color: #e3e3e3; }
+    .user-msg { background-color: #005c4b; padding: 15px; border-radius: 15px 15px 0px 15px; margin-left: auto; width: fit-content; max-width: 75%; margin-bottom: 15px; }
+    .ai-msg { background-color: #1e1f20; padding: 15px; border-radius: 15px 15px 15px 0px; margin-right: auto; width: fit-content; max-width: 75%; margin-bottom: 15px; border: 1px solid #333; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. AI Engine Setup ---
+# --- 2. Setup Gemini Engine ---
 try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    model_id = "llama-3.1-8b-instant"
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    # Latest 1.5 Flash - No 404 Guaranteed
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("API Key missing!")
+    st.error("API Key ka masla hai! Secrets mein check karein.")
 
 if "messages" not in st.session_state:
-    # Brain Injection: Setting the AI's personality
-    st.session_state.messages = [
-        {"role": "system", "content": "You are Sukkur's First AI. Talk to Sammad like a best friend in Roman Urdu/Hindi. Don't use difficult bookish Urdu. Be smart, funny, and direct. You support 70+ languages, if someone asks in another language, reply in that."}
-    ]
+    st.session_state.messages = []
 
-# --- 4. Sidebar ---
+# --- 3. Sidebar (Photo Uploader) ---
 with st.sidebar:
-    st.title("⚡ Sukkur AI Pro")
+    st.title("📸 Sukkur AI Vision")
+    uploaded_file = st.file_uploader("Photo bhejo ya File...", type=['png', 'jpg', 'jpeg'])
     if st.button("+ New Chat", use_container_width=True):
-        st.session_state.messages = st.session_state.messages[:1] # Keep system prompt
+        st.session_state.messages = []
         st.rerun()
-    st.markdown("---")
-    st.info("Ab ye smart hai aur iska dimag Hasnain se 100x tez hai! 😂")
 
-# --- 5. Chat Display ---
-for message in st.session_state.messages:
-    if message["role"] == "system": continue
-    
-    if message["role"] == "user":
-        st.markdown(f'<div class="user-bubble">{message["content"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="ai-bubble">{message["content"]}</div>', unsafe_allow_html=True)
+# --- 4. Main Chat Area ---
+st.title("Sukkur's First AI (Gemini 1.5 Pro)")
 
-# --- 6. Input Area ---
+for msg in st.session_state.messages:
+    div_class = "user-msg" if msg["role"] == "user" else "ai-msg"
+    st.markdown(f'<div class="{div_class}">{msg["content"]}</div>', unsafe_allow_html=True)
+
 if prompt := st.chat_input("Ask for anything..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.rerun()
-
-# Logic to get response
-if st.session_state.messages[-1]["role"] == "user":
+    st.markdown(f'<div class="user-msg">{prompt}</div>', unsafe_allow_html=True)
+    
     try:
-        response = client.chat.completions.create(
-            messages=st.session_state.messages,
-            model=model_id,
-        )
-        full_response = response.choices[0].message.content
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
-        st.rerun()
+        content_list = [prompt]
+        if uploaded_file:
+            img = Image.open(uploaded_file)
+            content_list.append(img)
+            st.image(img, width=200, caption="Sent image")
+
+        response = model.generate_content(content_list)
+        ai_reply = response.text
+        
+        st.markdown(f'<div class="ai-msg">{ai_reply}</div>', unsafe_allow_html=True)
+        st.code(ai_reply, language=None) # Copy button ke liye
+        
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+        
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Brain Error: {e}")
