@@ -6,7 +6,7 @@ import os
 try:
     # Ab key safe hai, code mein nazar nahi aayegi
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    model_id = "llama-3.3-71b-versatile"
+model_id = "llama-3.1-8b-instant"
 except Exception as e:
     st.error("Secrets mein API Key nahi mili! Settings check karein.")
 
