@@ -1,119 +1,118 @@
 import streamlit as st
 from groq import Groq
-from gtts import gTTS
-import base64
-import os
+import uuid
 
-# --- 1. Page Setup ---
+# --- 1. Page Configuration ---
 st.set_page_config(page_title="Astro AI", page_icon="✨", layout="wide")
 
-# --- 2. THE "ZERO GALTI" CSS ---
+# --- 2. CSS: The "Zero Streamlit" Look ---
 st.markdown("""
 <style>
-    /* Gemini Background */
+    /* Gemini Dark Theme */
     .main { background-color: #131314; color: #e3e3e3; }
-
-    /* Remove ALL default Streamlit headers, avatars, and labels */
-    header, [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"], .st-emotion-cache-jt7003 {
-        display: none !important;
-    }
-
-    /* RIGHT/LEFT ALIGNMENT LOGIC */
-    [data-testid="stChatMessage"] { background-color: transparent !important; border: none !important; margin-bottom: 5px !important; padding: 0 !important; }
+    header, [data-testid="stSidebarNav"] { visibility: hidden; }
     
-    /* User Message Style (Extreme Right) */
-    [data-testid="stChatMessage-user"] { display: flex; justify-content: flex-end; }
-    [data-testid="stChatMessage-user"] div[data-testid="stMarkdownContainer"] {
-        background-color: #2b2d2f; color: white; padding: 12px 18px; border-radius: 22px 22px 4px 22px; max-width: 75%;
+    /* Message Container Logic */
+    .chat-row { display: flex; width: 100%; margin-bottom: 20px; }
+    .user-row { justify-content: flex-end; }
+    .astro-row { justify-content: flex-start; }
+
+    /* Bubbles Style */
+    .user-bubble { 
+        background-color: #2b2d2f; color: white; padding: 12px 18px; 
+        border-radius: 20px 20px 4px 20px; max-width: 70%; text-align: left;
+    }
+    .astro-text { 
+        background-color: transparent; color: #e3e3e3; padding: 10px 0; 
+        max-width: 85%; font-size: 16px; line-height: 1.6;
     }
 
-    /* Assistant Message Style (Extreme Left) */
-    [data-testid="stChatMessage-assistant"] { display: flex; justify-content: flex-start; }
-    [data-testid="stChatMessage-assistant"] div[data-testid="stMarkdownContainer"] {
-        background-color: transparent; color: #e3e3e3; padding: 12px 0; max-width: 85%;
-    }
-
-    /* SLEEK SEARCH BAR (Fixed at Bottom, Chota and Patla) */
+    /* Fixed Gemini Bottom Bar */
     div[data-testid="stChatInput"] { 
-        position: fixed; bottom: 30px; width: 60% !important; left: 20% !important;
-        background-color: #1e1f20 !important; border-radius: 30px !important;
-        border: 1px solid #444746 !important; height: 50px !important;
+        position: fixed; bottom: 25px; width: 60% !important; left: 20% !important;
+        background-color: #1e1f20 !important; border-radius: 28px !important;
+        border: 1px solid #444746 !important; 
     }
     
-    /* Tiny Icons Styling */
-    .tiny-btn { 
-        background: none; border: none; color: #8e918f; cursor: pointer; 
-        font-size: 16px; margin-right: 10px; 
-    }
-    .tiny-btn:hover { color: white; }
-
-    /* Fix Mic Widget */
-    .stAudioInput { width: 45px !important; position: fixed; bottom: 32px; left: 16%; z-index: 9999; }
+    /* Small Icons Styling */
+    .icon-btn { background: none; border: none; color: #8e918f; cursor: pointer; font-size: 14px; }
+    
+    /* Sidebar Chat History Styling */
+    .stButton>button { background-color: transparent; border: none; text-align: left; color: #e3e3e3; width: 100%; }
+    .stButton>button:hover { background-color: #2b2d2f; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Astro Logic ---
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# --- 3. Persistent Chat History Logic (Screenshot 2 Feature) ---
+if "sessions" not in st.session_state:
+    st.session_state.sessions = {} # Dictionary to store all chats
+if "current_session" not in st.session_state:
+    st.session_state.current_session = str(uuid.uuid4())
+    st.session_state.sessions[st.session_state.current_session] = {
+        "title": "New Chat",
+        "messages": [{"role": "system", "content": "You are Astro. Reply in Roman Urdu/English. End with a friendly follow-up question."}]
+    }
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "system", "content": "You are Astro. 1. Reply in the same language user uses (English, Roman Urdu, etc.). 2. Always end with a short, friendly follow-up question related to the topic. 3. No labels or icons in text."}
-    ]
-
-# --- 4. Sidebar ---
+# --- 4. Sidebar: History & Settings ---
 with st.sidebar:
     st.title("Astro ✨")
-    st.file_uploader("+ Add Photo", type=['png', 'jpg', 'jpeg'])
-    if st.button("Delete Chat History"):
-        st.session_state.messages = st.session_state.messages[:1]
+    if st.button("+ New Chat", use_container_width=True):
+        new_id = str(uuid.uuid4())
+        st.session_state.sessions[new_id] = {
+            "title": "New Chat",
+            "messages": [{"role": "system", "content": "You are Astro. Reply in Roman Urdu/English. End with a friendly follow-up question."}]
+        }
+        st.session_state.current_session = new_id
         st.rerun()
+    
+    st.markdown("### Recent Chats")
+    for session_id, data in st.session_state.sessions.items():
+        if st.button(f"💬 {data['title'][:25]}...", key=session_id):
+            st.session_state.current_session = session_id
+            st.rerun()
 
-# --- 5. Main Chat ---
+# --- 5. Main Chat Interface ---
+curr_session = st.session_state.sessions[st.session_state.current_session]
+
 st.markdown("<h2 style='text-align: center; color: #8ab4f8;'>Astro</h2>", unsafe_allow_html=True)
 
-# Container for messages to prevent scrolling issues
-for msg in st.session_state.messages:
+# Custom Message Display (No Streamlit default bubbles)
+for msg in curr_session["messages"]:
     if msg["role"] == "system": continue
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+    
+    if msg["role"] == "user":
+        st.markdown(f'''<div class="chat-row user-row"><div class="user-bubble">{msg["content"]}</div></div>''', unsafe_allow_html=True)
+    else:
+        st.markdown(f'''<div class="chat-row astro-row"><div class="astro-text">{msg["content"]}</div></div>''', unsafe_allow_html=True)
 
-# --- 6. Input Area ---
-# Mic is fixed via CSS at bottom-left
-voice_in = st.audio_input("") 
-user_in = st.chat_input("Hukum karein...")
+# --- 6. Input Section ---
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+user_input = st.chat_input("Ask Astro anything...") # English fix from screenshot 1
 
-if user_in:
-    st.session_state.messages.append({"role": "user", "content": user_in})
-    with st.chat_message("user"):
-        st.write(user_in)
+if user_input:
+    # Update title if it's the first message
+    if curr_session["title"] == "New Chat":
+        curr_session["title"] = user_input[:30]
+        
+    curr_session["messages"].append({"role": "user", "content": user_input})
+    st.markdown(f'''<div class="chat-row user-row"><div class="user-bubble">{user_input}</div></div>''', unsafe_allow_html=True)
 
     try:
-        response = client.chat.completions.create(
+        chat_completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=st.session_state.messages,
-            temperature=0.6
+            messages=curr_session["messages"]
         )
-        ans = response.choices[0].message.content
+        reply = chat_completion.choices[0].message.content
         
-        with st.chat_message("assistant"):
-            st.write(ans)
+        st.markdown(f'''<div class="chat-row astro-row"><div class="astro-text">{reply}</div></div>''', unsafe_allow_html=True)
+        
+        # Tiny Icons Row
+        col1, col2, _ = st.columns([0.05, 0.05, 0.9])
+        with col1: st.button("🔊", key=f"v_{uuid.uuid4()}")
+        with col2: st.button("📋", key=f"c_{uuid.uuid4()}")
             
-            # --- TINY ICONS ROW ---
-            icon_col1, icon_col2, _ = st.columns([0.05, 0.05, 0.9])
-            with icon_col1:
-                if st.button("🔊", key=f"v_{len(st.session_state.messages)}"):
-                    tts = gTTS(text=ans[:300], lang='hi')
-                    tts.save("reply.mp3")
-                    with open("reply.mp3", "rb") as f:
-                        b64 = base64.b64encode(f.read()).decode()
-                    st.markdown(f'<audio src="data:audio/mp3;base64,{b64}" autoplay hidden></audio>', unsafe_allow_html=True)
-            with icon_col2:
-                # Chota Clipboard Expand
-                with st.popover("📋"):
-                    st.code(ans, language=None)
+        curr_session["messages"].append({"role": "assistant", "content": reply})
+        st.rerun()
 
-        st.session_state.messages.append({"role": "assistant", "content": ans})
-        st.rerun() # Refresh to clear input and fix layout
-        
     except Exception as e:
         st.error(f"Error: {e}")
