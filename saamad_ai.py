@@ -2,73 +2,84 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --- 1. Page Config (Professional Look) ---
-st.set_page_config(page_title="Sukkur's First AI", page_icon="🤖", layout="wide")
+# --- 1. Page Config ---
+st.set_page_config(page_title="Sukkur's First AI", page_icon="⚡", layout="wide")
 
-# Custom CSS for Professional Dark Theme
+# --- 2. Advanced CSS (For Right/Left Chat Bubbles) ---
 st.markdown("""
     <style>
-    .main { background-color: #131314; color: #e3e3e3; }
-    .stTextInput > div > div > input { background-color: #1e1f20; color: white; border-radius: 20px; }
-    .stChatMessage { background-color: #1e1f20; border-radius: 15px; padding: 10px; margin-bottom: 10px; }
+    .main { background-color: #0f1116; color: #ffffff; }
+    /* User Message - Right Side */
+    .user-bubble {
+        background-color: #005c4b;
+        padding: 15px;
+        border-radius: 15px 15px 0px 15px;
+        margin-bottom: 20px;
+        width: fit-content;
+        max-width: 70%;
+        margin-left: auto;
+        color: white;
+    }
+    /* AI Message - Left Side */
+    .ai-bubble {
+        background-color: #202c33;
+        padding: 15px;
+        border-radius: 15px 15px 15px 0px;
+        margin-bottom: 20px;
+        width: fit-content;
+        max-width: 70%;
+        margin-right: auto;
+        color: white;
+    }
+    .stTextInput > div > div > input { background-color: #2a3942; color: white; border-radius: 25px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. Setup AI Engine ---
+# --- 3. AI Engine Setup ---
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     model_id = "llama-3.1-8b-instant"
 except Exception as e:
-    st.error("API Key missing! Check Streamlit Secrets.")
+    st.error("API Key missing!")
 
-# --- 3. Chat State Management ---
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    # Brain Injection: Setting the AI's personality
+    st.session_state.messages = [
+        {"role": "system", "content": "You are Sukkur's First AI. Talk to Sammad like a best friend in Roman Urdu/Hindi. Don't use difficult bookish Urdu. Be smart, funny, and direct. You support 70+ languages, if someone asks in another language, reply in that."}
+    ]
 
-# --- 4. Sidebar (Clean History) ---
+# --- 4. Sidebar ---
 with st.sidebar:
-    st.title("🤖 Sukkur's First AI")
+    st.title("⚡ Sukkur AI Pro")
     if st.button("+ New Chat", use_container_width=True):
-        st.session_state.messages = []
+        st.session_state.messages = st.session_state.messages[:1] # Keep system prompt
         st.rerun()
-    
     st.markdown("---")
-    st.caption("Recent History")
-    for i, msg in enumerate(st.session_state.messages[-5:]):
-        if msg["role"] == "user":
-            st.markdown(f"📄 {msg['content'][:20]}...")
+    st.info("Ab ye smart hai aur iska dimag Hasnain se 100x tez hai! 😂")
 
-# --- 5. Main Chat Area ---
-st.title("Sukkur's First AI")
-st.caption("Advanced Artificial Intelligence at your service")
-
-# Display messages
+# --- 5. Chat Display ---
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] == "system": continue
+    
+    if message["role"] == "user":
+        st.markdown(f'<div class="user-bubble">{message["content"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="ai-bubble">{message["content"]}</div>', unsafe_allow_html=True)
 
-# User Input Box (Modified Placeholder)
+# --- 6. Input Area ---
 if prompt := st.chat_input("Ask for anything..."):
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    st.rerun()
 
+# Logic to get response
+if st.session_state.messages[-1]["role"] == "user":
     try:
-        # Generate AI Response
         response = client.chat.completions.create(
-            messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+            messages=st.session_state.messages,
             model=model_id,
         )
         full_response = response.choices[0].message.content
-
-        # Add AI message
-        with st.chat_message("assistant"):
-            st.markdown(full_response)
-            # Professional Code Box for copying
-            st.code(full_response, language=None)
-        
         st.session_state.messages.append({"role": "assistant", "content": full_response})
-
+        st.rerun()
     except Exception as e:
         st.error(f"Error: {e}")
