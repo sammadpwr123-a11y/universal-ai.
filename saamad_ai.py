@@ -2,68 +2,38 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-# --- 1. AI CONFIGURATION ---
-# Bilkul copy-paste karlo ye do lines:
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# API Key setup from Secrets
+try:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error(f"Setup Error: {e}")
 
-# --- 2. APP PAGE SETTINGS ---
-st.set_page_config(page_title="Sammad AI Server", page_icon="💻")
+st.title("🚀 Sammad's Universal AI Server")
 
-# --- 3. MULTI-USER SYSTEM ---
-st.sidebar.title("System Settings")
-user_name = st.sidebar.text_input("Enter Your Name:", "Guest").strip().lower()
-
-# File path for saving data locally on your laptop
-chat_file = f"chat_history_{user_name}.txt"
-
-st.sidebar.markdown("---")
-st.sidebar.subheader(f"History for: {user_name.capitalize()}")
-
-# --- Line 23 se start karo aur purana kachra saaf kar do ---
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if os.path.exists(chat_file):
-    with open(chat_file, "r", encoding="utf-8") as file:
-        st.sidebar.text_area("Old Records:", file.read(), height=400)
-else:
-    st.sidebar.info("No previous history found for this user.")
+# Sidebar history
+st.sidebar.title("Chat History")
+for chat in st.session_state.history:
+    st.sidebar.write(f"**You:** {chat['user']}")
+    st.sidebar.write(f"**AI:** {chat['ai']}")
+    st.sidebar.markdown("---")
 
-# --- Iske neeche seedha Line 38 (st.title) shuru honi chahiye ---
+# Main chat input
+user_input = st.chat_input("Ask me anything...")
 
-# --- 4. CHAT INTERFACE ---
-st.title("🤖 Sammad's Universal AI Server")
-st.write(f"Active User: **{user_name.capitalize()}**")
-
-# Session state to keep chat visible on screen
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Displaying the chat on screen
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# --- 5. LOGIC & SAVING ---
-if prompt := st.chat_input("Type your question..."):
-    # Display user input
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Permanent Save to Laptop (User's question)
-    with open(chat_file, "a", encoding="utf-8") as f:
-        f.write(f"USER: {prompt}\n")
-
-    # Generate AI Answer
-    with st.chat_message("assistant"):
-        # Explicit instruction for long, detailed answers
-        context = f"Instruction: Provide a very detailed, long, and expert response. Question: {prompt}"
-        response = model.generate_content(context)
-        st.markdown(response.text)
-    
-    # Permanent Save to Laptop (AI's answer)
-    st.session_state.messages.append({"role": "assistant", "content": response.text})
-    with open(chat_file, "a", encoding="utf-8") as f:
-        f.write(f"AI: {response.text}\n{'-'*30}\n")
+if user_input:
+    try:
+        response = model.generate_content(user_input)
+        ai_response = response.text
+        
+        # Save to history
+        st.session_state.history.append({"user": user_input, "ai": ai_response})
+        
+        # Display current chat
+        st.write(f"**You:** {user_input}")
+        st.write(f"**AI:** {ai_response}")
+    except Exception as e:
+        st.error(f"AI Error: {e}")
