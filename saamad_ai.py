@@ -1,9 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import os
 
-# --- 1. Page Config (Clean Gemini Look) ---
+# --- 1. Page Config ---
 st.set_page_config(page_title="Sukkur's First AI", page_icon="✨", layout="wide")
 
 st.markdown("""
@@ -16,25 +15,29 @@ st.markdown("""
 
 # --- 2. Setup Gemini Engine ---
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    # Latest 1.5 Flash - No 404 Guaranteed
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    if "GOOGLE_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # FIX: Model ka naam 'models/' ke saath likha hai taake 404 na aaye
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+    else:
+        st.error("API Key Secrets mein nahi mili!")
 except Exception as e:
-    st.error("API Key ka masla hai! Secrets mein check karein.")
+    st.error(f"Configuration Error: {e}")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 3. Sidebar (Photo Uploader) ---
+# --- 3. Sidebar ---
 with st.sidebar:
     st.title("📸 Sukkur AI Vision")
-    uploaded_file = st.file_uploader("Photo bhejo ya File...", type=['png', 'jpg', 'jpeg'])
+    uploaded_file = st.file_uploader("Photo yahan upload karein", type=['png', 'jpg', 'jpeg'])
     if st.button("+ New Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
 # --- 4. Main Chat Area ---
-st.title("Sukkur's First AI (Gemini 1.5 Pro)")
+st.title("Sukkur's First AI")
+st.caption("Now Powered by Gemini 1.5 Flash")
 
 for msg in st.session_state.messages:
     div_class = "user-msg" if msg["role"] == "user" else "ai-msg"
@@ -48,16 +51,19 @@ if prompt := st.chat_input("Ask for anything..."):
         if uploaded_file:
             img = Image.open(uploaded_file)
             content_list.append(img)
-            st.image(img, width=200, caption="Sent image")
+            st.image(img, width=250)
 
-        response = model.generate_content(content_list)
-        ai_reply = response.text
+        # Generating Response
+        with st.spinner("Soch raha hoon..."):
+            response = model.generate_content(content_list)
+            ai_reply = response.text
         
         st.markdown(f'<div class="ai-msg">{ai_reply}</div>', unsafe_allow_html=True)
-        st.code(ai_reply, language=None) # Copy button ke liye
         
+        # Save History
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.messages.append({"role": "assistant", "content": ai_reply})
         
     except Exception as e:
-        st.error(f"Brain Error: {e}")
+        # Error detail dikhane ke liye
+        st.error(f"Model Error: {e}")
