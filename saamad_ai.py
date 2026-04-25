@@ -7,14 +7,14 @@ import os
 # --- 1. Page Config ---
 st.set_page_config(page_title="Sammad AI", page_icon="⚡", layout="wide")
 
-# Professional Gemini-like UI
+# Custom Styling to look like Gemini
 st.markdown("""
     <style>
-    .main { background-color: #0b141a; color: white; }
-    .stChatInput { border-radius: 20px; }
-    .stAudio { height: 40px; }
-    /* Subtle Copy Box */
-    div.stCode { border: none; background-color: transparent !important; }
+    .main { background-color: #131314; color: #e3e3e3; }
+    .stChatInput { border-radius: 20px; border: 1px solid #444; }
+    .stChatMessage { background-color: transparent !important; }
+    /* Hide the big code block default look */
+    div.stCode { border: 1px solid #333; border-radius: 10px; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -23,29 +23,31 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "You are Sammad AI, a professional assistant. Switch languages naturally based on the user's input. Only provide copyable code blocks if requested."}
+        {"role": "system", "content": "You are Sammad AI. Reply in Roman Urdu/Hindi by default. Be smart and helpful like Gemini/GPT-4."}
     ]
 
-# --- 3. Audio Features (Speech to Text & Text to Speech) ---
+# --- 3. Audio Generator (Manual Only) ---
 def text_to_speech_data(text):
-    tts = gTTS(text=text[:500], lang='en') # Change to 'hi' for Urdu/Hindi
+    # Detect if Urdu/Hindi or English for better voice
+    tts = gTTS(text=text[:500], lang='hi') 
     tts.save("temp.mp3")
     with open("temp.mp3", "rb") as f:
         data = f.read()
     os.remove("temp.mp3")
     return base64.b64encode(data).decode()
 
-# --- 4. Sidebar ---
+# --- 4. Sidebar (Upload & Voice Fix) ---
 with st.sidebar:
     st.title("Sammad AI Settings")
-    st.info("Voice Input: Use the 'Record' feature in your browser/keyboard if available, or upload a voice clip below.")
-    # Professional Voice Input Simulation
-    voice_input = st.audio_input("Speak your command:") 
-    if st.button("Clear History"):
+    # Voice Upload instead of live recording to avoid lock-up
+    voice_file = st.file_uploader("Upload Voice/Audio Command", type=['mp3', 'wav', 'm4a'])
+    file_upload = st.file_uploader("Upload Documents (PDF/Text)", type=['pdf', 'txt'])
+    
+    if st.button("Clear Chat History"):
         st.session_state.messages = st.session_state.messages[:1]
         st.rerun()
 
-# --- 5. Main Chat ---
+# --- 5. Main Chat Area ---
 st.title("Sammad AI")
 
 # Display Messages
@@ -54,17 +56,16 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Handling Inputs (Text or Voice)
-user_query = st.chat_input("Type your message here...")
+# Handling Inputs
+if user_query := st.chat_input("Type your message here..."):
+    # If audio is uploaded, we add a note
+    full_query = user_query
+    if voice_file:
+        full_query += " [Note: User also uploaded a voice command]"
 
-# If user uses the new Microphone component
-if voice_input:
-    st.warning("Voice processing is active. (Requires high-speed API for instant STT)")
-
-if user_query:
-    st.session_state.messages.append({"role": "user", "content": user_query})
+    st.session_state.messages.append({"role": "user", "content": full_query})
     with st.chat_message("user"):
-        st.write(user_query)
+        st.write(full_query)
 
     try:
         # Get AI Response
@@ -72,21 +73,21 @@ if user_query:
             model="llama-3.3-70b-versatile",
             messages=st.session_state.messages
         )
-        full_response = response.choices[0].message.content
+        ai_reply = response.choices[0].message.content
         
         with st.chat_message("assistant"):
-            st.write(full_response)
+            st.write(ai_reply)
             
-            # 1. FIXED: No Auto-play. Only show player if user wants to listen.
-            if st.button("🔊 Listen to response"):
-                b64_audio = text_to_speech_data(full_response)
+            # Button 1: Audio (Manual)
+            if st.button("🔊 Play Voice"):
+                b64_audio = text_to_speech_data(ai_reply)
                 st.markdown(f'<audio src="data:audio/mp3;base64,{b64_audio}" controls autoplay></audio>', unsafe_allow_html=True)
             
-            # 2. FIXED: Clipboard/Copy Option (Hidden in a small expander like pro tools)
-            with st.expander("Copy Options"):
-                st.code(full_response)
+            # Button 2: Copy/Clipboard (Manual)
+            if st.button("📋 Show Copy Text"):
+                st.code(ai_reply)
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        st.session_state.messages.append({"role": "assistant", "content": ai_reply})
         
     except Exception as e:
         st.error(f"Error: {e}")
