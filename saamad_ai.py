@@ -20,7 +20,10 @@ chat_file = f"chat_history_{user_name}.txt"
 st.sidebar.markdown("---")
 st.sidebar.subheader(f"History for: {user_name.capitalize()}")
 
-# Loading historical data from your hard drive
+# Sahi wala code (Line 23 se 28 tak):
+if "history" not in st.session_state:
+    st.session_state.history = []
+
 if os.path.exists(chat_file):
     with open(chat_file, "r", encoding="utf-8") as file:
         st.sidebar.text_area("Old Records:", file.read(), height=400)
