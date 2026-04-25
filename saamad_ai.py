@@ -3,9 +3,9 @@ import google.generativeai as genai
 import os
 
 # --- 1. AI CONFIGURATION ---
-# Put your Google Gemini API Key here
-genai.configure(api_key="GOOGLE_API_KEY")
-model = genai.GenerativeModel('gemini-pro')
+# Bilkul copy-paste karlo ye do lines:
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # --- 2. APP PAGE SETTINGS ---
 st.set_page_config(page_title="Sammad AI Server", page_icon="💻")
