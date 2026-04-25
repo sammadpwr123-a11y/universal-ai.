@@ -9,7 +9,7 @@ try:
 except Exception as e:
     st.error(f"Setup Error: {e}")
 
-st.title("🚀 Sammad's Universal AI Server")
+st.title("🚀 Sammad's Universal AI Server bestfreind hasnain aak lora bhan ka ")
 
 if "history" not in st.session_state:
     st.session_state.history = []
