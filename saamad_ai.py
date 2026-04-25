@@ -2,61 +2,73 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --- 1. Llama Setup ---
-# Hum ne try/except ko bilkul sahi format mein rakha hai
+# --- 1. Page Config (Professional Look) ---
+st.set_page_config(page_title="Sukkur's First AI", page_icon="🤖", layout="wide")
+
+# Custom CSS for Professional Dark Theme
+st.markdown("""
+    <style>
+    .main { background-color: #131314; color: #e3e3e3; }
+    .stTextInput > div > div > input { background-color: #1e1f20; color: white; border-radius: 20px; }
+    .stChatMessage { background-color: #1e1f20; border-radius: 15px; padding: 10px; margin-bottom: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. Setup AI Engine ---
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    # Ye model 100% stable hai aur fast chalta hai
     model_id = "llama-3.1-8b-instant"
 except Exception as e:
-    st.error(f"Setup Error: {e}")
+    st.error("API Key missing! Check Streamlit Secrets.")
 
-# --- 2. Memory System ---
-chat_file = "dream_memory.txt"
+# --- 3. Chat State Management ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-def save_chat(u, a):
-    with open(chat_file, "a", encoding="utf-8") as f:
-        f.write(f"USER: {u}\nAI: {a}\n" + "—"*20 + "\n")
-
-def load_chat():
-    if os.path.exists(chat_file):
-        with open(chat_file, "r", encoding="utf-8") as f:
-            return f.read()
-    return "Memory is fresh."
-
-# --- 3. UI Design ---
-st.set_page_config(page_title="Sammad AI Pro", layout="wide")
-st.title("⚡ Sammad's Final Dream Server")
-
+# --- 4. Sidebar (Clean History) ---
 with st.sidebar:
-    st.title("📜 Memory Logs")
-    if st.button("Clear Logs"):
-        if os.path.exists(chat_file):
-            os.remove(chat_file)
-            st.rerun()
-    st.text_area("History:", load_chat(), height=500)
+    st.title("🤖 Sukkur's First AI")
+    if st.button("+ New Chat", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+    
+    st.markdown("---")
+    st.caption("Recent History")
+    for i, msg in enumerate(st.session_state.messages[-5:]):
+        if msg["role"] == "user":
+            st.markdown(f"📄 {msg['content'][:20]}...")
 
-# --- 4. Chat Interface ---
-user_input = st.chat_input("Hukum karein, Sammad bhai...")
+# --- 5. Main Chat Area ---
+st.title("Sukkur's First AI")
+st.caption("Advanced Artificial Intelligence at your service")
 
-if user_input:
+# Display messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# User Input Box (Modified Placeholder)
+if prompt := st.chat_input("Ask for anything..."):
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
     try:
-        chat_completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": user_input}],
+        # Generate AI Response
+        response = client.chat.completions.create(
+            messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
             model=model_id,
         )
-        ai_res = chat_completion.choices[0].message.content
+        full_response = response.choices[0].message.content
+
+        # Add AI message
+        with st.chat_message("assistant"):
+            st.markdown(full_response)
+            # Professional Code Box for copying
+            st.code(full_response, language=None)
         
-        # Save to permanent memory
-        save_chat(user_input, ai_res)
-        
-        # Display results
-        st.markdown(f"**You:** {user_input}")
-        st.markdown(f"**AI:** {ai_res}")
-        
-        # Simple Clipboard Button
-        st.copy_to_clipboard(ai_res)
-        st.success("Copied to clipboard!")
-        
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
     except Exception as e:
         st.error(f"Error: {e}")
