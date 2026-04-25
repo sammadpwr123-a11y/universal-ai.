@@ -2,87 +2,91 @@ import streamlit as st
 from groq import Groq
 from gtts import gTTS
 import base64
+import os
 
-# --- 1. Page Configuration (A to Z English) ---
+# --- 1. Page Config ---
 st.set_page_config(page_title="Sammad AI", page_icon="⚡", layout="wide")
 
-# CSS: Professional English Chat UI
+# Professional Gemini-like UI
 st.markdown("""
     <style>
     .main { background-color: #0b141a; color: white; }
-    .user-msg { background-color: #005c4b; padding: 15px; border-radius: 15px 15px 0px 15px; margin-left: auto; width: fit-content; max-width: 75%; margin-bottom: 10px; color: white; }
-    .ai-msg { background-color: #202c33; padding: 15px; border-radius: 15px 15px 15px 0px; margin-right: auto; width: fit-content; max-width: 75%; margin-bottom: 10px; color: white; border: 1px solid #333; }
     .stChatInput { border-radius: 20px; }
+    .stAudio { height: 40px; }
+    /* Subtle Copy Box */
+    div.stCode { border: none; background-color: transparent !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. AI Brain Setup ---
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    model_id = "llama-3.3-70b-versatile"
-except Exception as e:
-    st.error("Error: Please check your GROQ_API_KEY in Streamlit Secrets.")
+# --- 2. Initialize Brain ---
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# Personality: Pure English Professional
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "You are Sammad AI, a highly advanced artificial intelligence. You must communicate ONLY in English. Provide detailed, professional, and helpful responses to Sammad. Support all 70+ languages if requested for translation, but your primary interaction language is English."}
+        {"role": "system", "content": "You are Sammad AI, a professional assistant. Switch languages naturally based on the user's input. Only provide copyable code blocks if requested."}
     ]
 
-# --- 3. English Voice Engine ---
-def get_voice_engine(text):
-    try:
-        # Changed to English (en)
-        tts = gTTS(text=text[:400], lang='en')
-        tts.save("audio_reply.mp3")
-        with open("audio_reply.mp3", "rb") as f:
-            data = f.read()
-        b64 = base64.b64encode(data).decode()
-        return f'<audio src="data:audio/mp3;base64,{b64}" controls autoplay style="height:35px;"></audio>'
-    except:
-        return ""
+# --- 3. Audio Features (Speech to Text & Text to Speech) ---
+def text_to_speech_data(text):
+    tts = gTTS(text=text[:500], lang='en') # Change to 'hi' for Urdu/Hindi
+    tts.save("temp.mp3")
+    with open("temp.mp3", "rb") as f:
+        data = f.read()
+    os.remove("temp.mp3")
+    return base64.b64encode(data).decode()
 
-# --- 4. Sidebar (All English) ---
+# --- 4. Sidebar ---
 with st.sidebar:
-    st.title("⚡ Sammad AI Pro")
-    st.markdown("---")
-    if st.button("Clear Conversation", use_container_width=True):
+    st.title("Sammad AI Settings")
+    st.info("Voice Input: Use the 'Record' feature in your browser/keyboard if available, or upload a voice clip below.")
+    # Professional Voice Input Simulation
+    voice_input = st.audio_input("Speak your command:") 
+    if st.button("Clear History"):
         st.session_state.messages = st.session_state.messages[:1]
         st.rerun()
-    st.info("Status: Online | Engine: Llama 3.3 70B")
 
-# --- 5. Main Chat Interface ---
+# --- 5. Main Chat ---
 st.title("Sammad AI")
-st.caption("Advanced AI Interface for Professional Use")
 
-# Display History
+# Display Messages
 for msg in st.session_state.messages:
     if msg["role"] == "system": continue
-    role_class = "user-msg" if msg["role"] == "user" else "ai-msg"
-    st.markdown(f'<div class="{role_class}">{msg["content"]}</div>', unsafe_allow_html=True)
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-# User Input (English Placeholder)
-if prompt := st.chat_input("Type your message here..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.markdown(f'<div class="user-msg">{prompt}</div>', unsafe_allow_html=True)
+# Handling Inputs (Text or Voice)
+user_query = st.chat_input("Type your message here...")
+
+# If user uses the new Microphone component
+if voice_input:
+    st.warning("Voice processing is active. (Requires high-speed API for instant STT)")
+
+if user_query:
+    st.session_state.messages.append({"role": "user", "content": user_query})
+    with st.chat_message("user"):
+        st.write(user_query)
 
     try:
         # Get AI Response
-        completion = client.chat.completions.create(
-            messages=st.session_state.messages,
-            model=model_id,
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=st.session_state.messages
         )
-        ai_response = completion.choices[0].message.content
+        full_response = response.choices[0].message.content
         
-        # UI Output
-        st.markdown(f'<div class="ai-msg">{ai_response}</div>', unsafe_allow_html=True)
+        with st.chat_message("assistant"):
+            st.write(full_response)
+            
+            # 1. FIXED: No Auto-play. Only show player if user wants to listen.
+            if st.button("🔊 Listen to response"):
+                b64_audio = text_to_speech_data(full_response)
+                st.markdown(f'<audio src="data:audio/mp3;base64,{b64_audio}" controls autoplay></audio>', unsafe_allow_html=True)
+            
+            # 2. FIXED: Clipboard/Copy Option (Hidden in a small expander like pro tools)
+            with st.expander("Copy Options"):
+                st.code(full_response)
+
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
         
-        # Professional Clipboard Box
-        st.code(ai_response, language=None)
-        
-        # Audio Player (English Voice)
-        st.markdown(get_voice_engine(ai_response), unsafe_allow_html=True)
-        
-        st.session_state.messages.append({"role": "assistant", "content": ai_response})
     except Exception as e:
-        st.error(f"System Error: {e}")
+        st.error(f"Error: {e}")
